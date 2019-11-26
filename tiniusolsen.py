@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 # Import from python stanard library
+from random import random
 import sys
 from threading import Timer
 
@@ -71,6 +72,8 @@ class Application(Gtk.Application):
             self.window = builder.get_object("window")
             self.add_window(self.window)
             self.graph_canvas = builder.get_object("graph_canvas")
+            self.load_field = builder.get_object("instantaneous_load_display")
+            self.extension_field = builder.get_object("instantaneous_extension_display")
             builder.connect_signals(self)
 
             # Connect draw signal for canvas to our draw method.
@@ -99,8 +102,13 @@ class Application(Gtk.Application):
         '''
         Callback invoked when the run button is clicked
         '''
-        print("Asked to run tester")
-        self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
+        if self.instrument_control_thread:
+            self.instrument_control_thread.cancel()
+            self.instrument_control_thread = None
+        else:
+            print("Asked to run tester")
+            self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
+            self.instrument_control_thread.start()
 
 
     def show_about_window(self, _action, _params):
@@ -143,6 +151,12 @@ class Application(Gtk.Application):
 
     def poll_instrument(self):
         print("Asked to poll instrument")
+        load = random()
+        self.load_field.set_text()
+        extension = random()
+        self.extension_field.set_text()
+        self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
+        self.instrument_control_thread.start()
 
 
 
