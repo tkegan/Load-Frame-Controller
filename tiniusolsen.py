@@ -20,7 +20,7 @@ class Application(Gtk.Application):
         self.window = None
         self.graph_canvas = None
         self.coords = [(25.5, 38.8), (103.3, 209.9), (235.9, 132.2), (300.1, 200.5)]
-        self.sample_interval = 0.1
+        self.sample_interval = 0.5
         self.instrument_control_thread = None
 
         # Add command line parsing options
@@ -72,8 +72,8 @@ class Application(Gtk.Application):
             self.window = builder.get_object("window")
             self.add_window(self.window)
             self.graph_canvas = builder.get_object("graph_canvas")
-            self.load_field = builder.get_object("instantaneous_load_display")
-            self.extension_field = builder.get_object("instantaneous_extension_display")
+            self.load_field = builder.get_object("load_indicator")
+            self.extension_field = builder.get_object("extension_indicator")
             builder.connect_signals(self)
 
             # Connect draw signal for canvas to our draw method.
@@ -152,9 +152,9 @@ class Application(Gtk.Application):
     def poll_instrument(self):
         print("Asked to poll instrument")
         load = random()
-        self.load_field.set_text()
+        self.load_field.set_text("{0:.4f}".format(load))
         extension = random()
-        self.extension_field.set_text()
+        self.extension_field.set_text("{0:.4f}".format(extension))
         self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
         self.instrument_control_thread.start()
 

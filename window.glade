@@ -74,7 +74,6 @@
                 </child>
                 <child>
                   <object class="GtkEntry" id="load_indicator">
-                    <property name="name">instantaneous_load_display</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="editable">False</property>
@@ -88,7 +87,6 @@
                 </child>
                 <child>
                   <object class="GtkEntry" id="extension_indicator">
-                    <property name="name">instantaneous_extension_display</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="editable">False</property>
