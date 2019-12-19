@@ -1,9 +1,3 @@
 #ignore temp files
 *~
 *.pyc
-
-#ignore virtual environment
-bin
-include
-lib
-lib64
