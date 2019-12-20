@@ -6,23 +6,44 @@ from serial import Serial
 
 class TiniusOlsen:
     '''
-    A class for communicating with Tinius Olsen Load Frames which expose a
-    RS232 serial port for control.
+    A class for communicating with Tinius Olsen load frames
+
+    A number of, at this time, older Tinius Olsen load frames include a
+    control module with an RS232 port which can be connected to a computer
+    which can then control the apparatus. This class implements the text
+    over serial communication protocol used by these machines exposing
+    exposing methods for scripts to use to control such machines.
     
-    License: Apache 2.0 License (See Also LICENSE file included in the git
-    repository where this file is found)
+    License
+    --------
+    Apache 2.0 License (See Also LICENSE file)
     
-    @author Tom Egan <tegan@bucknell.edu> for Bucknell University 
+    Author
+    --------
+    Tom Egan <tegan@bucknell.edu> for Bucknell University 
     '''
 
     def __init__(self, communication_port_name):
         '''
-        @throws 
+        Parameters
+        --------
+        communication_port_name : str
+            the name of the serial port by which a compatible Tinius Olsen
+            load frame is connected to the PC running your script
+
+        Raises
+        --------
+        IOError - if the serial port can not be opened
         '''
         self.communication_port = Serial(communication_port_name, 19200, timeout=1)
 
 
-    def _read(self):
+    def __del__(self):
+        if self.communication_port:
+            self.communication_port.close()
+
+
+    def __read(self):
         buffer = bytearray()
         while True:
             b = self.communication_port.read()
@@ -35,17 +56,17 @@ class TiniusOlsen:
 
     def read_extension(self):
         self.communication_port.write(b'RP\r')
-        return self._read()
+        return self.__read()
 
 
     def read_load(self):
         self.communication_port.write(b'RL\r')
-        return self._read()
+        return self.__read()
 
 
     def read_load_cell_type(self):
         self.communication_port.write(b'RC\r')
-        return self._read()
+        return self.__read()
 
 
     def start_moving_up(self):

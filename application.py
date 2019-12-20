@@ -20,10 +20,23 @@ class Application(Gtk.Application):
     '''
     A GUI application for controlling select Tinius Olsen load frames
 
+    A number of, at this time, older Tinius Olsen load frames include a
+    control module with an RS232 port which can be connected to a computer
+    which can then control the apparatus. This class implements a GUI for 
+    controlling such machines.
+
     A note on method names... The do_* methods are overrides of methods
     inherited from Gtk.Application, the ui_* methods are ui callbacks set by
     Glade in window.glade or bound to Gio.Action instances in do_startup()
     and invoked by a menu item activation. 
+    
+    License
+    --------
+    Apache 2.0 License (See Also LICENSE file)
+    
+    Author
+    --------
+    Tom Egan <tegan@bucknell.edu> for Bucknell University 
     '''
 
     def __init__(self, *args, **kwargs):
