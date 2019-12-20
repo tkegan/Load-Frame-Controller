@@ -5,11 +5,11 @@ from random import random
 import sys
 from threading import Timer
 
-# import from third party libraries managed by pip
+# Import from third party libraries
 from serial import Serial
 from serial.tools.list_ports import comports
 
-# Import from python-gobject
+# Import from OS provided libraries e.g. python-gobject
 #   on CentOS install with `sudo dnf install python36-gobject`
 import gi
 gi.require_version('Gtk', '3.0')
@@ -17,18 +17,37 @@ from gi.repository import GLib, Gio, Gtk, Gdk
 
 
 class Application(Gtk.Application):
+    '''
+    A GUI application for controlling select Tinius Olsen load frames
+
+    A note on method names... The do_* methods are overrides of methods
+    inherited from Gtk.Application, the ui_* methods are ui callbacks set by
+    Glade in window.glade or bound to Gio.Action instances in do_startup()
+    and invoked by a menu item activation. 
+    '''
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, application_id="edu.bucknell.TOControl", **kwargs)
+        super().__init__(*args, application_id="edu.bucknell.TOControl",
+            #flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
+            **kwargs)
+        self.settings = {
+            "log": False,
+            "log_file": "tinius_olsen.log"
+        }
+
+        # Declare a reference for the name of the serial device over which we
+        # will communicate with the load frame controller 
         self.serial_device_name = None
 
-        # Declare a reference to a window
+        # Declare a reference to a window and UI elements
         self.window = None
         self.graph_canvas = None
         self.connection_select = None
         self.connect_button = None
         self.panel_switcher = None
 
+        # Declare a reference to the list of serial devices the UI will show
+        # in the combo box on the device selection page
         self.serial_connections_list_store = None
 
         # Declare some place holder data
@@ -37,9 +56,9 @@ class Application(Gtk.Application):
         self.instrument_control_thread = None
 
         # Add command line parsing options
-        #self.add_main_option("test", ord("t"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Command line test", None)
+        #self.add_main_option("log", ord("l"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Enable logging raw output from Load Frame", None)
 
-
+    # Gtk.Application overrides
     def do_startup(self):
         '''
         Callback invoked to "run" the application; allows for setup before
@@ -50,28 +69,43 @@ class Application(Gtk.Application):
         # declare "actions" handled by application
         # actions are invoked by menus
         action = Gio.SimpleAction.new("about", None)
-        action.connect("activate", self.show_about_window)
+        action.connect("activate", self.ui_show_about_window)
         self.add_action(action)
 
         action = Gio.SimpleAction.new("preferences", None)
-        action.connect("activate", self.show_preferences_window)
+        action.connect("activate", self.ui_show_preferences_window)
         self.add_action(action)
 
         action = Gio.SimpleAction.new("clear", None)
-        action.connect("activate", self.clear_data)
+        action.connect("activate", self.ui_clear_data)
         self.add_action(action)
 
         action = Gio.SimpleAction.new("export", None)
-        action.connect("activate", self.export_data)
+        action.connect("activate", self.ui_export_data)
         self.add_action(action)
 
         action = Gio.SimpleAction.new("quit", None)
-        action.connect("activate", self.on_quit)
+        action.connect("activate", self.ui_quit)
         self.add_action(action)
 
         #Build menus, too late in do_activate
         builder = Gtk.Builder.new_from_file("menu.ui")
         self.set_app_menu(builder.get_object("app-menu"))
+
+
+    # def do_command_line(self, command_line):
+    #     '''
+    #     Unpack command line and adjust settings accordingly
+    #     '''
+    #     # Convert from GVariantDict to native python dict
+    #     options = command_line.get_options_dict()
+    #     options = options.end().unpack()
+
+    #     if "log" in options:
+    #         print("Command line enabled logging")
+
+    #     self.activate
+    #     return 0
 
 
     def do_activate(self):
@@ -103,27 +137,27 @@ class Application(Gtk.Application):
             # Does not work from Glade for some reason
             self.graph_canvas.connect("draw", self.plot_data)
 
-        self.on_update_serial_port_list(None)
+        self.ui_update_serial_port_list(None)
 
         # bring the window to the front
         self.window.present()
 
 
-    def on_zero_extension(self, _action):
+    def ui_zero_extension(self, _action):
         '''
         Callback invoked when the zero extension button is clicked
         '''
         print("Asked to zero extension")
 
 
-    def on_zero_load(self, _action):
+    def ui_zero_load(self, _action):
         '''
         Callback invoked when the zero load button is clicked
         '''
         print("Asked to zero load")
 
 
-    def on_run_testing_apparatus(self, _action):
+    def ui_run_testing_apparatus(self, _action):
         '''
         Callback invoked when the run button is clicked
         '''
@@ -136,7 +170,7 @@ class Application(Gtk.Application):
             self.instrument_control_thread.start()
 
 
-    def show_about_window(self, _action, _params):
+    def ui_show_about_window(self, _action, _params):
         '''
         Show a standard about window. Requires an appdata.xml file to be present
         '''
@@ -144,40 +178,26 @@ class Application(Gtk.Application):
         about_dialog.present()
 
 
-    def clear_data(self, _action, _params):
+    def ui_clear_data(self, _action, _params):
         print("Asked to clear data")
 
 
-    def export_data(self, _action, _params):
+    def ui_export_data(self, _action, _params):
         print("Asked to export data")
 
 
-    def show_preferences_window(self, _action, _params):
+    def ui_show_preferences_window(self, _action, _params):
         print("Asked to show preferences window")
 
 
-    def plot_data(self, _wid, cr):
-        '''
-        Draw the graph
-        '''
-        cr.set_source_rgb(0, 0, 0)
-        cr.set_line_width(0.5)
-
-        # connect each point to every other point
-        for i in range(0,len(self.coords)-1):
-            cr.move_to(self.coords[i][0], self.coords[i][1])
-            cr.line_to(self.coords[i+1][0], self.coords[i+1][1]) 
-            cr.stroke()
-
-
-    def on_quit(self, *_args):
+    def ui_quit(self, *_args):
         '''
         Callback to exit this application
         '''
         self.quit()
 
 
-    def on_update_serial_port_list(self, *_args):
+    def ui_update_serial_port_list(self, *_args):
         ports = comports()
 
         self.serial_connections_list_store.clear()
@@ -194,7 +214,7 @@ class Application(Gtk.Application):
             self.connect_button.set_sensitive(True)
 
 
-    def on_connect(self, *_args):
+    def ui_connect(self, *_args):
         active_iter = self.connection_select.get_active_iter()
         if active_iter:    # None if no active item
             # get all columns... not magic constants but indexes 0 and 1
@@ -210,7 +230,24 @@ class Application(Gtk.Application):
             print("No entry")
 
 
+    def plot_data(self, _wid, cr):
+        '''
+        Draw the graph
+        '''
+        cr.set_source_rgb(0, 0, 0)
+        cr.set_line_width(0.5)
+
+        # connect each point to every other point
+        for i in range(0,len(self.coords)-1):
+            cr.move_to(self.coords[i][0], self.coords[i][1])
+            cr.line_to(self.coords[i+1][0], self.coords[i+1][1]) 
+            cr.stroke()
+
+
     def poll_instrument(self):
+        '''
+        Poll the load frame via serial connection for data
+        '''
         print("Asked to poll instrument")
         load = random()
         self.load_field.set_text("{0:.4f}".format(load))

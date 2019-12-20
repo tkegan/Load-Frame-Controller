@@ -20,7 +20,7 @@
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">TO Control</property>
     <property name="show_menubar">False</property>
-    <signal name="destroy" handler="on_quit" swapped="no"/>
+    <signal name="destroy" handler="ui_quit" swapped="no"/>
     <child>
       <placeholder/>
     </child>
@@ -65,7 +65,7 @@
                 <property name="sensitive">False</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="clicked" handler="on_connect" swapped="no"/>
+                <signal name="clicked" handler="ui_connect" swapped="no"/>
               </object>
               <packing>
                 <property name="left_attach">1</property>
@@ -80,7 +80,7 @@
                 <property name="image">image1</property>
                 <property name="relief">none</property>
                 <property name="always_show_image">True</property>
-                <signal name="clicked" handler="on_update_serial_port_list" swapped="no"/>
+                <signal name="clicked" handler="ui_update_serial_port_list" swapped="no"/>
               </object>
               <packing>
                 <property name="left_attach">2</property>
@@ -195,7 +195,7 @@
                         <property name="receives_default">True</property>
                         <property name="margin_top">5</property>
                         <property name="margin_bottom">5</property>
-                        <signal name="clicked" handler="on_zero_load" swapped="no"/>
+                        <signal name="clicked" handler="ui_zero_load" swapped="no"/>
                       </object>
                       <packing>
                         <property name="left_attach">2</property>
@@ -211,7 +211,7 @@
                         <property name="receives_default">True</property>
                         <property name="margin_top">5</property>
                         <property name="margin_bottom">5</property>
-                        <signal name="clicked" handler="on_zero_extension" swapped="no"/>
+                        <signal name="clicked" handler="ui_zero_extension" swapped="no"/>
                       </object>
                       <packing>
                         <property name="left_attach">2</property>
@@ -333,7 +333,7 @@
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
-                        <signal name="toggled" handler="on_run_testing_apparatus" swapped="no"/>
+                        <signal name="toggled" handler="ui_run_testing_apparatus" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
