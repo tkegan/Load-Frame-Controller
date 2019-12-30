@@ -3,7 +3,8 @@
 # Import from python stanard library
 from random import random
 import sys
-from threading import Timer
+from threading import Thread
+from time import sleep, time
 
 # Import from third party libraries
 from serial import Serial
@@ -14,6 +15,9 @@ from serial.tools.list_ports import comports
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gio, Gtk, Gdk
+
+# Import form our bundled instrument control library
+from tiniusolsen import TiniusOlsen
 
 
 class Application(Gtk.Application):
@@ -52,6 +56,12 @@ class Application(Gtk.Application):
         # will communicate with the load frame controller 
         self.serial_device_name = None
 
+        # declare a reference to the apparatus
+        self.machine = None
+
+        # declare a reference to the thread we will use to poll the machine
+        self.instrument_control_thread = None
+
         # Declare a reference to a window and UI elements
         self.window = None
         self.graph_canvas = None
@@ -65,8 +75,9 @@ class Application(Gtk.Application):
 
         # Declare some place holder data
         self.coords = [(25.5, 38.8), (103.3, 209.9), (235.9, 132.2), (300.1, 200.5)]
-        self.sample_interval = 0.5
-        self.instrument_control_thread = None
+
+        # Set a sane default
+        self.polling_interval = 1
 
         # Add command line parsing options
         #self.add_main_option("log", ord("l"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Enable logging raw output from Load Frame", None)
@@ -174,13 +185,14 @@ class Application(Gtk.Application):
         '''
         Callback invoked when the run button is clicked
         '''
-        if self.instrument_control_thread:
-            self.instrument_control_thread.cancel()
-            self.instrument_control_thread = None
-        else:
-            print("Asked to run tester")
-            self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
-            self.instrument_control_thread.start()
+        pass
+        # if self.instrument_control_thread:
+        #     self.instrument_control_thread.cancel()
+        #     self.instrument_control_thread = None
+        # else:
+        #     print("Asked to run tester")
+        #     self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
+        #     self.instrument_control_thread.start()
 
 
     def ui_show_about_window(self, _action, _params):
@@ -236,8 +248,13 @@ class Application(Gtk.Application):
             device = self.serial_connections_list_store.get(active_iter, 0, 1)
             self.serial_device_name = device[1]
 
-            # should connect to device and discover device settings...
+            # connect to device and discover device settings...
+            self.machine = TiniusOlsen(self.serial_device_name)
+            self.instrument_control_thread = Thread(self.__poll_instrument)
+            self.instrument_control_thread.daemon = True
+            self.instrument_control_thread.start()
 
+            # show machine controls
             self.panel_switcher.set_visible_child_name("control_pane")
         else:
             print("No entry")
@@ -257,18 +274,18 @@ class Application(Gtk.Application):
             cr.stroke()
 
 
-    def poll_instrument(self):
+    def __poll_instrument(self):
         '''
         Poll the load frame via serial connection for data
-        '''
-        print("Asked to poll instrument")
-        load = random()
-        self.load_field.set_text("{0:.4f}".format(load))
-        extension = random()
-        self.extension_field.set_text("{0:.4f}".format(extension))
-        self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
-        self.instrument_control_thread.start()
 
+        Intended to be run as a thread
+        '''
+        next_call = time()
+        while True:
+            load = self.machine.read_load()
+            self.load_field.set_text("{0:.4f}".format(load))
+            next_call += self.polling_interval
+            sleep(next_call - time())
 
 
 # This is the entry point where the python interpreter starts our application

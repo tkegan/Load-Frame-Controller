@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+# Import from Python Standard Library
+from threading import Lock
+
 # Import from third party libraries
 from serial import Serial
 
@@ -36,10 +39,12 @@ class TiniusOlsen:
         IOError - if the serial port can not be opened
         '''
         self.communication_port = Serial(communication_port_name, 19200, timeout=1)
+        self.__lock = Lock()
 
 
     def __del__(self):
         if self.communication_port:
+            self.stop_moving()
             self.communication_port.close()
 
 
@@ -55,35 +60,43 @@ class TiniusOlsen:
 
 
     def read_extension(self):
-        self.communication_port.write(b'RP\r')
-        return self.__read()
+        with self.__lock:
+            self.communication_port.write(b'RP\r')
+            return self.__read()
 
 
     def read_load(self):
-        self.communication_port.write(b'RL\r')
-        return self.__read()
+        with self.__lock:
+            self.communication_port.write(b'RL\r')
+            return self.__read()
 
 
     def read_load_cell_type(self):
-        self.communication_port.write(b'RC\r')
-        return self.__read()
+        with self.__lock:
+            self.communication_port.write(b'RC\r')
+            return self.__read()
 
 
     def start_moving_up(self):
-        self.communication_port.write(b'WF\r')
+        with self.__lock:
+            self.communication_port.write(b'WF\r')
 
 
     def start_moving_down(self):
-        self.communication_port.write(b'WR\r')
+        with self.__lock:
+            self.communication_port.write(b'WR\r')
 
 
     def stop_moving(self):
-        self.communication_port.write(b'WS\r')
+        with self.__lock:
+            self.communication_port.write(b'WS\r')
 
 
     def zero_extension(self):
-        self.communication_port.write(b'WP\r')
+        with self.__lock:
+            self.communication_port.write(b'WP\r')
 
 
     def zero_load(self):
-        self.communication_port.write(b'WL\r')
+        with self.__lock:
+            self.communication_port.write(b'WL\r')
