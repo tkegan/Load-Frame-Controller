@@ -26,6 +26,34 @@ class TiniusOlsen:
     Tom Egan <tegan@bucknell.edu> for Bucknell University 
     '''
 
+    range_lookup_table = {
+        "5": 5,
+        "17": 10,
+        "18": 20,
+        "19": 25,
+        "20": 30,
+        "21": 50,
+        "33": 100,
+        "34": 200,
+        "35": 250,
+        "36": 300,
+        "37": 500,
+        "49": 1000,
+        "50": 2000,
+        "51": 2500,
+        "52": 3000,
+        "53": 5000,
+        "65": 10000,
+        "66": 20000,
+        "67": 25000,
+        "68": 30000,
+        "69": 50000,
+        "81": 100000,
+        "82": 200000,
+        "83": 250000
+    }
+
+
     def __init__(self, communication_port_name):
         '''
         Parameters
@@ -52,11 +80,29 @@ class TiniusOlsen:
         buffer = bytearray()
         while True:
             b = self.communication_port.read()
-            if 1 > len(b) or 13 == b or 0 == b:
+            print(b)
+            if 1 > len(b) or 13 == b[0] or 0 == b[0]:
                 break
             else:
-                buffer.append(b)
-        return str(buffer)
+                buffer.append(b[0])
+                print(buffer)
+        return buffer
+
+
+    def get_load_cell_range(self):
+        '''
+        Get the rated range for the load cell in Newtons (N)
+
+        Raises
+        --------
+        LookupError if the machine reports a load cell of an unknown type
+            is in use or does not respond to request to read configuration
+        '''
+        load_cell_type = self.read_load_cell_type
+        try:
+            return self.range_lookup_table[load_cell_type]
+        except KeyError as ke:
+            raise LookupError("Machine reports unknown load cell is in use") from ke
 
 
     def read_extension(self):
@@ -68,7 +114,8 @@ class TiniusOlsen:
     def read_load(self):
         with self.__lock:
             self.communication_port.write(b'RL\r')
-            return self.__read()
+            buffer = self.__read()
+            return int.from_bytes(buffer, byteorder='big', signed=True)
 
 
     def read_load_cell_type(self):

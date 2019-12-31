@@ -247,15 +247,19 @@ class Application(Gtk.Application):
             # magic no.
             device = self.serial_connections_list_store.get(active_iter, 0, 1)
             self.serial_device_name = device[1]
+            print("Connecting to {}".format(self.serial_device_name))
 
             # connect to device and discover device settings...
-            self.machine = TiniusOlsen(self.serial_device_name)
-            self.instrument_control_thread = Thread(self.__poll_instrument)
-            self.instrument_control_thread.daemon = True
-            self.instrument_control_thread.start()
+            try:
+                self.machine = TiniusOlsen(self.serial_device_name)
+                self.instrument_control_thread = Thread(target=self.__poll_instrument)
+                self.instrument_control_thread.daemon = True
+                self.instrument_control_thread.start()
 
-            # show machine controls
-            self.panel_switcher.set_visible_child_name("control_pane")
+                # show machine controls
+                self.panel_switcher.set_visible_child_name("control_pane")
+            except:
+                print("Panic here!")
         else:
             print("No entry")
 
@@ -283,7 +287,8 @@ class Application(Gtk.Application):
         next_call = time()
         while True:
             load = self.machine.read_load()
-            self.load_field.set_text("{0:.4f}".format(load))
+            #self.load_field.set_text("{0:.4f}".format(load))
+            self.load_field.set_text("{}".format(load))
             next_call += self.polling_interval
             sleep(next_call - time())
 
