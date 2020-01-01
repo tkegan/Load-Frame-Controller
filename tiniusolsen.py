@@ -1,7 +1,10 @@
 #!/usr/bin/python3
 
+# We want to live in Python 3 but...
+from __future__ import division
+
 # Import from Python Standard Library
-from threading import Lock
+from threading import RLock
 
 # Import from third party libraries
 from serial import Serial
@@ -66,8 +69,10 @@ class TiniusOlsen:
         --------
         IOError - if the serial port can not be opened
         '''
+        self.communication_port = None  # insures theat the attribute exists...
+                                        # useful if the next line raises an error
         self.communication_port = Serial(communication_port_name, 19200, timeout=1)
-        self.__lock = Lock()
+        self.__lock = RLock()
 
 
     def __del__(self):
@@ -78,15 +83,16 @@ class TiniusOlsen:
 
     def __read(self):
         buffer = bytearray()
-        while True:
-            b = self.communication_port.read()
-            print(b)
-            if 1 > len(b) or 13 == b[0] or 0 == b[0]:
-                break
-            else:
-                buffer.append(b[0])
-                print(buffer)
-        return buffer
+        with self.__lock:
+            while True:
+                b = self.communication_port.read()
+                if 1 > len(b) or 13 == b[0] or 0 == b[0]:
+                    break
+                else:
+                    buffer.append(b[0])
+            
+            #print(buffer.decode('utf-8'))
+            return buffer
 
 
     def get_load_cell_range(self):
@@ -98,7 +104,7 @@ class TiniusOlsen:
         LookupError if the machine reports a load cell of an unknown type
             is in use or does not respond to request to read configuration
         '''
-        load_cell_type = self.read_load_cell_type
+        load_cell_type = self.read_load_cell_type()
         try:
             return self.range_lookup_table[load_cell_type]
         except KeyError as ke:
@@ -106,22 +112,44 @@ class TiniusOlsen:
 
 
     def read_extension(self):
+        '''
+        Get the current extension as a multiple of 0.001mm e.g. 6859 is 6.859mm
+        '''
         with self.__lock:
             self.communication_port.write(b'RP\r')
-            return self.__read()
+            return int(self.__read())
 
 
     def read_load(self):
+        '''
+        Get the current load as fraction of the full range -1.0 < x < 1.0
+
+        To get the load in Netwons multiply the value returned by this method
+        by the value returned from get_load_cell_range
+        '''
         with self.__lock:
             self.communication_port.write(b'RL\r')
-            buffer = self.__read()
-            return int.from_bytes(buffer, byteorder='big', signed=True)
+            return int(self.__read()) / 0x7FFF
 
 
     def read_load_cell_type(self):
+        '''
+        Get the type of the currently installed load cell.
+
+        Returns
+        --------
+        str - which should be one of the predefined keys in range_lookup_table 
+        '''
         with self.__lock:
             self.communication_port.write(b'RC\r')
-            return self.__read()
+            return self.__read().decode('utf-8')
+
+
+    def set_run_rate(self):
+        with self.__lock:
+            self.communication_port.write(b'WV')
+            # write the rate here
+            self.communication_port.write(b'\r')
 
 
     def start_moving_up(self):
@@ -142,8 +170,10 @@ class TiniusOlsen:
     def zero_extension(self):
         with self.__lock:
             self.communication_port.write(b'WP\r')
+            self.__read() # purge the \r
 
 
     def zero_load(self):
         with self.__lock:
             self.communication_port.write(b'WL\r')
+            self.__read() # purge the \r
