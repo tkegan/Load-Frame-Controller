@@ -52,22 +52,22 @@ class Application(Gtk.Application):
             "log_file": "tinius_olsen.log"
         }
 
-        # Declare a reference for the name of the serial device over which we
-        # will communicate with the load frame controller 
-        self.serial_device_name = None
-
         # declare a reference to the apparatus
         self.machine = None
+        self.range = 0
 
         # declare a reference to the thread we will use to poll the machine
         self.instrument_control_thread = None
 
         # Declare a reference to a window and UI elements
         self.window = None
+        self.statusbar = None
         self.graph_canvas = None
         self.connection_select = None
         self.connect_button = None
         self.panel_switcher = None
+        self.load_field = None
+        self.extension_field = None
 
         # Declare a reference to the list of serial devices the UI will show
         # in the combo box on the device selection page
@@ -142,28 +142,33 @@ class Application(Gtk.Application):
             builder = Gtk.Builder.new_from_file("window.glade")
             self.window = builder.get_object("window")
             self.add_window(self.window)
-            self.panel_switcher = builder.get_object("panel_switcher")
-            
-            renderer = Gtk.CellRendererText()
-            self.serial_connections_list_store = builder.get_object("serial_connections_list_store")
-            self.connection_select = builder.get_object("connection_select")
-            self.connection_select.pack_start(renderer, True)
-            self.connection_select.add_attribute(renderer, "text", 0)
-            self.connect_button = builder.get_object("connect_button")
 
+            # Connect other UI Element references (UIOutlets)
+            self.statusbar = builder.get_object("statusbar")
+            self.panel_switcher = builder.get_object("panel_switcher")
             self.graph_canvas = builder.get_object("graph_canvas")
             self.load_field = builder.get_object("load_indicator")
             self.extension_field = builder.get_object("extension_indicator")
+            self.serial_connections_list_store = builder.get_object("serial_connections_list_store")
+            self.connection_select = builder.get_object("connection_select")
+            self.connect_button = builder.get_object("connect_button")
+            
+            # Pack a renderer in the combobox
+            renderer = Gtk.CellRendererText()
+            self.connection_select.pack_start(renderer, True)
+            self.connection_select.add_attribute(renderer, "text", 1)
 
+            # Connect signals (UIActions)
             builder.connect_signals(self)
 
             # Connect draw signal for canvas to our draw method.
             # Does not work from Glade for some reason
             self.graph_canvas.connect("draw", self.plot_data)
 
+        # Get a list of serial ports and populate the combobox
         self.ui_update_serial_port_list(None)
 
-        # bring the window to the front
+        # Bring the window to the front
         self.window.present()
 
 
@@ -171,28 +176,31 @@ class Application(Gtk.Application):
         '''
         Callback invoked when the zero extension button is clicked
         '''
-        print("Asked to zero extension")
+        if self.machine:
+            self.machine.zero_extension()
+        else:
+            print("Unable to zero extension; No load frame connected")
+            self.statusbar.push(0, "Unable to zero load; No load frame connected")
 
 
     def ui_zero_load(self, _action):
         '''
         Callback invoked when the zero load button is clicked
         '''
-        print("Asked to zero load")
+        if self.machine:
+            self.machine.zero_load()
+        else:
+            print("Unable to zero load; No load frame connected")
+            self.statusbar.push(0, "Unable to zero load; No load frame connected")
 
 
     def ui_run_testing_apparatus(self, _action):
         '''
         Callback invoked when the run button is clicked
+
+        We will accumulated data is some sort of structure and trigger graph redraws here
         '''
         pass
-        # if self.instrument_control_thread:
-        #     self.instrument_control_thread.cancel()
-        #     self.instrument_control_thread = None
-        # else:
-        #     print("Asked to run tester")
-        #     self.instrument_control_thread = Timer(self.sample_interval, self.poll_instrument)
-        #     self.instrument_control_thread.start()
 
 
     def ui_show_about_window(self, _action, _params):
@@ -234,7 +242,9 @@ class Application(Gtk.Application):
             print("{} serial ports found".format(len(ports)))
             for port in ports:
                 print("{} ({})".format(port.name, port.device))
-                self.serial_connections_list_store.append({port.name, port.device})
+                row = self.serial_connections_list_store.append(None)
+                self.serial_connections_list_store.set_value(row, 0, port.device)
+                self.serial_connections_list_store.set_value(row, 1, port.name)
             self.connection_select.set_active(0)
             self.connect_button.set_sensitive(True)
 
@@ -246,22 +256,30 @@ class Application(Gtk.Application):
             # indicating we want the value of columns 0 and 1. Ugly yes,
             # magic no.
             device = self.serial_connections_list_store.get(active_iter, 0, 1)
-            self.serial_device_name = device[1]
-            print("Connecting to {}".format(self.serial_device_name))
+            serial_device_name = device[0]
+            print("Connecting to {}".format(serial_device_name))
+            self.statusbar.push(0, "Connecting to loadframe on {}".format(serial_device_name))
 
             # connect to device and discover device settings...
             try:
-                self.machine = TiniusOlsen(self.serial_device_name)
+                self.machine = TiniusOlsen(serial_device_name)
+
+                self.range = self.machine.get_load_cell_range()
+
+                # show machine controls
+                self.statusbar.remove_all(0)
+                self.statusbar.push(0, "Connected to loadframe on {} range: {}N".format(serial_device_name, self.range))
+                self.panel_switcher.set_visible_child_name("control_pane")
+
+                # start polling instrument
                 self.instrument_control_thread = Thread(target=self.__poll_instrument)
                 self.instrument_control_thread.daemon = True
                 self.instrument_control_thread.start()
-
-                # show machine controls
-                self.panel_switcher.set_visible_child_name("control_pane")
             except:
-                print("Panic here!")
+                self.statusbar.push(0, "Unable to establish connection to load frame controller on {}".format(serial_device_name))
         else:
-            print("No entry")
+            print("You must select a serial port to connect to.")
+            self.statusbar.push(0, "You must select a serial port to connect to.")
 
 
     def plot_data(self, _wid, cr):
@@ -286,9 +304,10 @@ class Application(Gtk.Application):
         '''
         next_call = time()
         while True:
-            load = self.machine.read_load()
-            #self.load_field.set_text("{0:.4f}".format(load))
+            load = self.machine.read_load() * self.range
             self.load_field.set_text("{}".format(load))
+            extension = self.machine.read_extension()
+            self.extension_field.set_text("{}".format(extension))
             next_call += self.polling_interval
             sleep(next_call - time())
 
