@@ -1,8 +1,8 @@
-# RS232TiniusOlsenUI
-A control UI for select Tinius Olsen Load Frames
+# Tinius Olsen Controller
+A graphical user interface for controlling for select Tinius Olsen Load Frames with RS-232 serial interfaces.
 
 ## About
-The Bucknell Universtity College of Engineering has a number of Tinius Olsen load frames with RS-232 serial interfaces. In order to support research endevours a GUI was created circa 2004-2007 using National Instruments LabView. LabView now appears to be nearing end of life so we have decided to replace the GUI with one developed in Python + Gtk3 we can deploy on low cost hardware (Raspberry Pi running Linux).
+The Bucknell Universtity College of Engineering has a number of Tinius Olsen load frames with RS-232 serial interfaces. In order to support research endevours a GUI was created circa 2004-2007 using National Instruments' LabView. The version of LabView used is no longer supported and the project files are incompatible with contemporary editions of LabView. Therefore a replacement was desired. This GUI, developed in Python + Gtk3, can be deployed on low cost, small footprint hardware e.g. a Raspberry Pi 4 running Linux.
 
 ## Dependencies
 
@@ -15,6 +15,8 @@ This project is not designed to be run in a virtual environment as Gtk3 is diffi
 ```sh
 python3 application.py
 ```
+
+Please note that this software allows you to operate a compatible load frame from a GUI, but does not make any safety guarantees. The software will attempt to stop the load frame if it is in motion when closing as reasonable default but just as injuries can occur when using the interface on the load frame, injuries can happen when using this software. ALWAYS use caution and wear appropriate personal protective equipment when running any loadframe regardless of interface. 
 
 ## License
 This project is licensed under the Apache 2.0 License - see the LICENSE file for details

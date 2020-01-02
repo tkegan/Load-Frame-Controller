@@ -1,5 +1,15 @@
 #!/usr/bin/python3
 
+#####################################################################
+# Copyright 2020 Tom Egan
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#####################################################################
+
 # Import from python stanard library
 from random import random
 import sys
@@ -116,7 +126,7 @@ class Application(Gtk.Application):
         self.add_action(action)
 
         #Build menus, too late in do_activate
-        builder = Gtk.Builder.new_from_file("menu.ui")
+        builder = Gtk.Builder.new_from_file("menu.glade")
         self.set_app_menu(builder.get_object("app-menu"))
 
 
