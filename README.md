@@ -27,6 +27,5 @@ This project is licensed under the Apache 2.0 License - see the LICENSE file for
 - Accumulate data into a data structure
 - Graph accumulated data
 - Allow for export of data
-- Implement setting run rate
-- Enable run/stop button
+- Catch IO errors that indicate machine has been disconnected and deal with them reasonably
 - Provide as a package with appdata.xml, icon and .desktop files

@@ -145,26 +145,30 @@ class TiniusOlsen:
             return self.__read().decode('utf-8')
 
 
-    def set_run_rate(self):
+    def set_run_rate(self, rate):
         with self.__lock:
             self.communication_port.write(b'WV')
-            # write the rate here
+            self.communication_port.write(bytes("{:.1f}".format(rate), 'utf-8'))
             self.communication_port.write(b'\r')
+            self.__read() # purge the \r
 
 
     def start_moving_up(self):
         with self.__lock:
             self.communication_port.write(b'WF\r')
+            self.__read() # purge the \r
 
 
     def start_moving_down(self):
         with self.__lock:
             self.communication_port.write(b'WR\r')
+            self.__read() # purge the \r
 
 
     def stop_moving(self):
         with self.__lock:
             self.communication_port.write(b'WS\r')
+            self.__read() # purge the \r
 
 
     def zero_extension(self):

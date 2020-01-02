@@ -65,9 +65,12 @@ class Application(Gtk.Application):
         self.graph_canvas = None
         self.connection_select = None
         self.connect_button = None
+        self.run_button = None
+        self.direction_up_radio_button = None
         self.panel_switcher = None
         self.load_field = None
         self.extension_field = None
+        self.run_rate = None
 
         # Declare a reference to the list of serial devices the UI will show
         # in the combo box on the device selection page
@@ -152,6 +155,8 @@ class Application(Gtk.Application):
             self.serial_connections_list_store = builder.get_object("serial_connections_list_store")
             self.connection_select = builder.get_object("connection_select")
             self.connect_button = builder.get_object("connect_button")
+            self.run_button = builder.get_object("run_button")
+            self.direction_up_radio_button = builder.get_object("direction_up_radio_button")
             
             # Pack a renderer in the combobox
             renderer = Gtk.CellRendererText()
@@ -194,13 +199,35 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "Unable to zero load; No load frame connected")
 
 
+    def ui_run_rate_changed(self, sender):
+        if self.machine:
+            self.machine.set_run_rate(sender.get_value())
+        else:
+            print("Unable to set run rate; No load frame connected")
+            self.statusbar.push(0, "Unable to set run rate; No load frame connected")
+
+
     def ui_run_testing_apparatus(self, _action):
         '''
-        Callback invoked when the run button is clicked
+        Run or Stop the load frame
 
-        We will accumulated data is some sort of structure and trigger graph redraws here
+        Callback invoked when the run button is clicked. If button is active
+        instruct load frame to run otherwise instruct load frame to stop
         '''
-        pass
+        if self.machine:
+            if self.run_button.get_active():
+                if self.direction_up_radio_button.get_active():
+                    self.machine.start_moving_up()
+                else:
+                    self.machine.start_moving_down()
+                self.run_button.set_label("Stop")
+            else:
+                self.machine.stop_moving()
+                self.run_button.set_label("Run")
+        else:
+            print("Unable to run load frame; No load frame connected")
+            self.statusbar.push(0, "Unable to run load frame; No load frame connected")
+            self.run_button.set_active(False)
 
 
     def ui_show_about_window(self, _action, _params):
@@ -250,6 +277,9 @@ class Application(Gtk.Application):
 
 
     def ui_connect(self, *_args):
+        '''
+        Connect to the instrument using the selected serial port
+        '''
         active_iter = self.connection_select.get_active_iter()
         if active_iter:    # None if no active item
             # get all columns... not magic constants but indexes 0 and 1
