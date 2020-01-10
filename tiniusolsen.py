@@ -14,29 +14,110 @@
 from __future__ import division
 
 # Import from Python Standard Library
+from abc import ABC, abstractmethod
 from threading import RLock
 
 # Import from third party libraries
 from serial import Serial
 
+'''
+Classes for communicating with Tinius Olsen load frames
 
-class TiniusOlsen:
+A number of, at this time, older Tinius Olsen load frames include a control
+module with an RS232 port which can be connected to a computer which can then
+control the apparatus. This module provides implementations of the text over
+serial communication protocols used by some of these machines.
+
+License
+--------
+Apache 2.0 License (See Also LICENSE file)
+
+Author
+--------
+Tom Egan <tegan@bucknell.edu> for Bucknell University 
+'''
+
+class TiniusOlsen(ABC):
     '''
-    A class for communicating with Tinius Olsen load frames
+    An abstract base class that implements some core functionality shared
+    by all supported Tinius Olsen load frames 
+    '''
 
-    A number of, at this time, older Tinius Olsen load frames include a
-    control module with an RS232 port which can be connected to a computer
-    which can then control the apparatus. This class implements the text
-    over serial communication protocol used by these machines exposing
-    exposing methods for scripts to use to control such machines.
-    
-    License
-    --------
-    Apache 2.0 License (See Also LICENSE file)
-    
-    Author
-    --------
-    Tom Egan <tegan@bucknell.edu> for Bucknell University 
+    def __init__(self):
+        self.communication_port = None  # insures that the attribute exists...
+        self._lock = RLock()
+
+
+    def __del__(self):
+        if self.communication_port:
+            self.stop_moving()
+            self.communication_port.close()
+
+
+    def _read(self):
+        buffer = bytearray()
+        with self._lock:
+            while True:
+                b = self.communication_port.read()
+                if 1 > len(b) or 13 == b[0] or 0 == b[0]:
+                    break
+                else:
+                    buffer.append(b[0])
+            
+            #print(buffer.decode('utf-8'))
+            return buffer
+
+
+    @abstractmethod
+    def read_extension(self):
+        '''
+        Get the current extension in Millimeters (mm)
+        '''
+        pass
+
+
+    @abstractmethod
+    def read_load(self):
+        '''
+        Get the current load in Newtons (N)
+        '''
+        pass
+
+
+    @abstractmethod
+    def set_run_rate(self, rate):
+        pass
+
+
+    @abstractmethod
+    def start_moving_up(self):
+        pass
+
+
+    @abstractmethod
+    def start_moving_down(self):
+        pass
+
+
+    @abstractmethod
+    def stop_moving(self):
+        pass
+
+
+    @abstractmethod
+    def zero_extension(self):
+        pass
+
+
+    @abstractmethod
+    def zero_load(self):
+        pass
+
+
+class TiniusOlsenH5KSeries(TiniusOlsen):
+    '''
+    An implementation of the serial Communication protocol used with Tinius
+    Olsen H5K series load frame controllers
     '''
 
     range_lookup_table = {
@@ -79,30 +160,125 @@ class TiniusOlsen:
         --------
         IOError - if the serial port can not be opened
         '''
-        self.communication_port = None  # insures theat the attribute exists...
-                                        # useful if the next line raises an error
+        super().__init__()
         self.communication_port = Serial(communication_port_name, 19200, timeout=1)
-        self.__lock = RLock()
+        self.range = self.get_load_cell_range()
 
 
-    def __del__(self):
-        if self.communication_port:
-            self.stop_moving()
-            self.communication_port.close()
+    def get_load_cell_range(self):
+        '''
+        Get the rated range for the load cell in Newtons (N)
+
+        Raises
+        --------
+        LookupError if the machine reports a load cell of an unknown type
+            is in use or does not respond to request to read configuration
+        '''
+        load_cell_type = self.read_load_cell_type()
+        try:
+            return self.range_lookup_table[load_cell_type]
+        except KeyError as ke:
+            raise LookupError("Machine reports unknown load cell is in use") from ke
 
 
-    def __read(self):
-        buffer = bytearray()
-        with self.__lock:
-            while True:
-                b = self.communication_port.read()
-                if 1 > len(b) or 13 == b[0] or 0 == b[0]:
-                    break
-                else:
-                    buffer.append(b[0])
-            
-            #print(buffer.decode('utf-8'))
-            return buffer
+    def read_extension(self):
+        '''
+        Get the current extension in millimeters (mm)
+        '''
+        with self._lock:
+            self.communication_port.write(b'RP\r')
+            return 0.001 * int(self._read())
+
+
+    def read_load(self):
+        '''
+        Get the current load in Newtons (N)
+        '''
+        with self._lock:
+            self.communication_port.write(b'RL\r')
+            return self.range * int(self._read()) / 0x7FFF
+
+
+    def read_load_cell_type(self):
+        '''
+        Get the type of the currently installed load cell.
+
+        Returns
+        --------
+        str - which should be one of the predefined keys in range_lookup_table 
+        '''
+        with self._lock:
+            self.communication_port.write(b'RC\r')
+            return self._read().decode('utf-8')
+
+
+    def set_run_rate(self, rate):
+        with self._lock:
+            self.communication_port.write(b'WV')
+            self.communication_port.write(bytes("{:.1f}".format(rate), 'utf-8'))
+            self.communication_port.write(b'\r')
+            self._read() # purge the \r
+
+
+    def start_moving_up(self):
+        with self._lock:
+            self.communication_port.write(b'WF\r')
+            self._read() # purge the \r
+
+
+    def start_moving_down(self):
+        with self._lock:
+            self.communication_port.write(b'WR\r')
+            self._read() # purge the \r
+
+
+    def stop_moving(self):
+        with self._lock:
+            self.communication_port.write(b'WS\r')
+            self._read() # purge the \r
+
+
+    def zero_extension(self):
+        with self._lock:
+            self.communication_port.write(b'WP\r')
+            self._read() # purge the \r
+
+
+    def zero_load(self):
+        with self._lock:
+            self.communication_port.write(b'WL\r')
+            self._read() # purge the \r
+
+
+class TiniusOlsen1000Series(TiniusOlsen):
+    '''
+    An implementation of the serial Communication protocol used with Tinius
+    Olsen 1000 series load frame controllers
+    '''
+
+    range_lookup_table = {
+        "0": 1000,
+        "1": 100,
+        "2": 10,
+        "3": 1,
+        "6": 10000
+    }
+
+
+    def __init__(self, communication_port_name):
+        '''
+        Parameters
+        --------
+        communication_port_name : str
+            the name of the serial port by which a compatible Tinius Olsen
+            load frame is connected to the PC running your script
+
+        Raises
+        --------
+        IOError - if the serial port can not be opened
+        '''
+        super().__init__()
+        self.communication_port = Serial(communication_port_name, 9600, timeout=1)
 
 
     def get_load_cell_range(self):
@@ -125,9 +301,9 @@ class TiniusOlsen:
         '''
         Get the current extension as a multiple of 0.001mm e.g. 6859 is 6.859mm
         '''
-        with self.__lock:
-            self.communication_port.write(b'RP\r')
-            return int(self.__read())
+        with self._lock:
+            self.communication_port.write(b'R2\r')
+            return int(self._read())
 
 
     def read_load(self):
@@ -137,9 +313,9 @@ class TiniusOlsen:
         To get the load in Netwons multiply the value returned by this method
         by the value returned from get_load_cell_range
         '''
-        with self.__lock:
-            self.communication_port.write(b'RL\r')
-            return int(self.__read()) / 0x7FFF
+        with self._lock:
+            self.communication_port.write(b'R1\r')
+            return int(self._read()) / 2000
 
 
     def read_load_cell_type(self):
@@ -150,44 +326,44 @@ class TiniusOlsen:
         --------
         str - which should be one of the predefined keys in range_lookup_table 
         '''
-        with self.__lock:
+        with self._lock:
             self.communication_port.write(b'RC\r')
-            return self.__read().decode('utf-8')
+            return self._read().decode('utf-8')
 
 
     def set_run_rate(self, rate):
-        with self.__lock:
+        with self._lock:
             self.communication_port.write(b'WV')
             self.communication_port.write(bytes("{:.1f}".format(rate), 'utf-8'))
             self.communication_port.write(b'\r')
-            self.__read() # purge the \r
+            self._read() # purge the \r
 
 
     def start_moving_up(self):
-        with self.__lock:
+        with self._lock:
             self.communication_port.write(b'WF\r')
-            self.__read() # purge the \r
+            self._read() # purge the \r
 
 
     def start_moving_down(self):
-        with self.__lock:
+        with self._lock:
             self.communication_port.write(b'WR\r')
-            self.__read() # purge the \r
+            self._read() # purge the \r
 
 
     def stop_moving(self):
-        with self.__lock:
+        with self._lock:
             self.communication_port.write(b'WS\r')
-            self.__read() # purge the \r
+            self._read() # purge the \r
 
 
     def zero_extension(self):
-        with self.__lock:
-            self.communication_port.write(b'WP\r')
-            self.__read() # purge the \r
+        with self._lock:
+            self.communication_port.write(b'WE\r')
+            self._read() # purge the \r
 
 
     def zero_load(self):
-        with self.__lock:
+        with self._lock:
             self.communication_port.write(b'WL\r')
-            self.__read() # purge the \r
+            self._read() # purge the \r

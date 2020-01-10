@@ -27,7 +27,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gio, Gtk, Gdk
 
 # Import form our bundled instrument control library
-from tiniusolsen import TiniusOlsen
+from tiniusolsen import TiniusOlsen1000Series, TiniusOlsenH5KSeries
 
 
 class Application(Gtk.Application):
@@ -53,6 +53,11 @@ class Application(Gtk.Application):
     Tom Egan <tegan@bucknell.edu> for Bucknell University 
     '''
 
+    loadframe_models = {
+        "Tinius Olsen H5K Series": TiniusOlsenH5KSeries,
+        "Tinius Olsen 1000 Series": TiniusOlsen1000Series
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, application_id="edu.bucknell.TOControl",
             #flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
@@ -74,6 +79,7 @@ class Application(Gtk.Application):
         self.statusbar = None
         self.graph_canvas = None
         self.connection_select = None
+        self.model_select = None
         self.connect_button = None
         self.run_button = None
         self.direction_up_radio_button = None
@@ -164,14 +170,26 @@ class Application(Gtk.Application):
             self.extension_field = builder.get_object("extension_indicator")
             self.serial_connections_list_store = builder.get_object("serial_connections_list_store")
             self.connection_select = builder.get_object("connection_select")
+            self.models_list_store = builder.get_object("models_list_store")
+            self.model_select = builder.get_object("model_select")
             self.connect_button = builder.get_object("connect_button")
             self.run_button = builder.get_object("run_button")
             self.direction_up_radio_button = builder.get_object("direction_up_radio_button")
             
-            # Pack a renderer in the combobox
+            # Pack a renderer in the connection select combobox
             renderer = Gtk.CellRendererText()
             self.connection_select.pack_start(renderer, True)
             self.connection_select.add_attribute(renderer, "text", 1)
+
+            # Populate the models list store
+            self.models_list_store.clear()
+            for model_name in self.loadframe_models.keys():
+                self.models_list_store.append([model_name])
+
+            # Pack a renderer in the model select combobox
+            renderer = Gtk.CellRendererText()
+            self.model_select.pack_start(renderer, True)
+            self.model_select.add_attribute(renderer, "text", 0)
 
             # Connect signals (UIActions)
             builder.connect_signals(self)
@@ -290,20 +308,25 @@ class Application(Gtk.Application):
         '''
         Connect to the instrument using the selected serial port
         '''
-        active_iter = self.connection_select.get_active_iter()
-        if active_iter:    # None if no active item
-            # get all columns... not magic constants but indexes 0 and 1
-            # indicating we want the value of columns 0 and 1. Ugly yes,
-            # magic no.
-            device = self.serial_connections_list_store.get(active_iter, 0, 1)
-            serial_device_name = device[0]
+        model_list_store_iter = self.model_select.get_active_iter()
+        connection_list_store_iter = self.connection_select.get_active_iter()
+
+        # Do we have a selection?
+        if model_list_store_iter is not None and connection_list_store_iter is not None:
+            model_list_store = self.model_select.get_model()
+            model_name = model_list_store[model_list_store_iter][0]
+            if model_name not in self.loadframe_models:
+                self.statusbar.push(0, "You must select the loadframe model first")
+                return
+
+            serial_device = self.serial_connections_list_store[connection_list_store_iter][:2]
+            serial_device_name = serial_device[0]
             print("Connecting to {}".format(serial_device_name))
             self.statusbar.push(0, "Connecting to loadframe on {}".format(serial_device_name))
 
             # connect to device and discover device settings...
             try:
-                self.machine = TiniusOlsen(serial_device_name)
-
+                self.machine = self.loadframe_models[model_name](serial_device_name)
                 self.range = self.machine.get_load_cell_range()
 
                 # show machine controls

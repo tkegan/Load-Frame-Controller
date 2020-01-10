@@ -25,6 +25,12 @@ Author: Tom Egan
   <!-- interface-description A GUI for controlling select Tinius Olsen load frames with RS232 serial interfaces -->
   <!-- interface-copyright 2020 -->
   <!-- interface-authors Tom Egan -->
+  <object class="GtkListStore" id="models_list_store">
+    <columns>
+      <!-- column-name model -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
   <object class="GtkImage" id="refresh">
     <property name="visible">True</property>
     <property name="can_focus">False</property>
@@ -77,10 +83,28 @@ Author: Tom Egan
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="valign">baseline</property>
                     <property name="label" translatable="yes">Choose Connection</property>
+                    <property name="justify">right</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkButton">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="image">refresh</property>
+                    <property name="relief">none</property>
+                    <property name="always_show_image">True</property>
+                    <signal name="clicked" handler="ui_update_serial_port_list" swapped="no"/>
+                  </object>
+                  <packing>
+                    <property name="left_attach">2</property>
                     <property name="top_attach">0</property>
                   </packing>
                 </child>
@@ -106,23 +130,36 @@ Author: Tom Egan
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkComboBox" id="model_select">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="model">models_list_store</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
                     <property name="top_attach">1</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkButton">
+                  <object class="GtkLabel">
                     <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">True</property>
-                    <property name="image">refresh</property>
-                    <property name="relief">none</property>
-                    <property name="always_show_image">True</property>
-                    <signal name="clicked" handler="ui_update_serial_port_list" swapped="no"/>
+                    <property name="can_focus">False</property>
+                    <property name="halign">end</property>
+                    <property name="valign">baseline</property>
+                    <property name="label" translatable="yes">Model</property>
+                    <property name="justify">right</property>
                   </object>
                   <packing>
-                    <property name="left_attach">2</property>
-                    <property name="top_attach">0</property>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
                   </packing>
+                </child>
+                <child>
+                  <placeholder/>
                 </child>
                 <child>
                   <placeholder/>
