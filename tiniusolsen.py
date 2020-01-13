@@ -16,6 +16,7 @@ from __future__ import division
 # Import from Python Standard Library
 from abc import ABC, abstractmethod
 from threading import RLock
+from time import sleep
 
 # Import from third party libraries
 from serial import Serial
@@ -256,7 +257,11 @@ class TiniusOlsenH5KSeries(TiniusOlsen):
 class TiniusOlsen1000Series(TiniusOlsen):
     '''
     An implementation of the serial Communication protocol used with Tinius
-    Olsen 1000 series load frame controllers
+    Olsen 1000 series load frame controllers.
+    
+    These machines assume that software will manipulate data to provide
+    zeroing in software always reporting an absolute value over the serial
+    protocol 
     '''
 
     range_lookup_table = {
@@ -282,6 +287,8 @@ class TiniusOlsen1000Series(TiniusOlsen):
         '''
         super().__init__()
         self.communication_port = Serial(communication_port_name, 9600, timeout=1)
+        self.zero_load_offset = 0
+        self.zero_extension_offset = 0
 
 
     def get_load_cell_range(self):
@@ -306,7 +313,7 @@ class TiniusOlsen1000Series(TiniusOlsen):
         '''
         with self._lock:
             self.communication_port.write(b'R2\r')
-            return int(self._read())
+            return int(self._read()) - self.zero_extension_offset
 
 
     def read_load(self):
@@ -318,7 +325,7 @@ class TiniusOlsen1000Series(TiniusOlsen):
         '''
         with self._lock:
             self.communication_port.write(b'R1\r')
-            return int(self._read()) / 2000
+            return (int(self._read()) - self.zero_load_offset) / 2000
 
 
     def read_load_cell_type(self):
@@ -364,9 +371,15 @@ class TiniusOlsen1000Series(TiniusOlsen):
         with self._lock:
             self.communication_port.write(b'WE\r')
             self._read() # purge the \r
+            sleep(15)
+            self.communication_port.write(b'R2\r')
+            self.zero_extension_offset = int(self._read())
 
 
     def zero_load(self):
         with self._lock:
-            self.communication_port.write(b'WL\r')
+            self.communication_port.write(b'WZ\r')
             self._read() # purge the \r
+            sleep(15)
+            self.communication_port.write(b'R1\r')
+            self.zero_load_offset = int(self._read())
