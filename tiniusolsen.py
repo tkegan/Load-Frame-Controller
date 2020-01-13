@@ -196,7 +196,10 @@ class TiniusOlsenH5KSeries(TiniusOlsen):
         '''
         with self._lock:
             self.communication_port.write(b'RL\r')
-            return self.range * int(self._read()) / 0x7FFF
+            # 0X7FFF seems like a logical conversion constant but
+            # the machines do not seem to have binary number ranges
+            # d30000 works better
+            return int(self._read()) / 30000
 
 
     def read_load_cell_type(self):
@@ -246,7 +249,7 @@ class TiniusOlsenH5KSeries(TiniusOlsen):
 
     def zero_load(self):
         with self._lock:
-            self.communication_port.write(b'WL\r')
+            self.communication_port.write(b'WZ\r')
             self._read() # purge the \r
 
 
