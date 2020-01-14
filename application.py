@@ -27,18 +27,18 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gio, Gtk, Gdk
 
-# Import form our bundled instrument control library
+# Import from our bundled instrument control library
 from tiniusolsen import TiniusOlsen1000Series, TiniusOlsenH5KSeries
 
 
 class Application(Gtk.Application):
     '''
-    A GUI application for controlling select Tinius Olsen load frames
+    A GUI application for controlling select load frames
 
-    A number of, at this time, older Tinius Olsen load frames include a
-    control module with an RS232 port which can be connected to a computer
-    which can then control the apparatus. This class implements a GUI for 
-    controlling such machines.
+    A number of older Tinius Olsen load frames include a control module
+    with an RS232 port which can be connected to a computer which can then
+    control the apparatus. This class implements a GUI for controlling such
+    machines.
 
     A note on method names... The do_* methods are overrides of methods
     inherited from Gtk.Application, the ui_* methods are ui callbacks set by
@@ -247,6 +247,7 @@ class Application(Gtk.Application):
 
     def ui_collect_data_state_changed(self, sender):
         self.__collecting_data = sender.get_active()
+
 
     def ui_run_testing_apparatus(self, _action):
         '''

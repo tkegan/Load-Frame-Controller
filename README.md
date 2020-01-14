@@ -1,4 +1,4 @@
-# Tinius Olsen Controller
+# Load Frame Controller
 A graphical user interface for controlling for select Tinius Olsen Load Frames with RS-232 serial interfaces.
 
 ## About
@@ -27,6 +27,7 @@ This project is licensed under the Apache 2.0 License - see the LICENSE file for
 
 ## To Do
 
+- Fix bug - 1000 series devices need speed set before moving
 - Add axis to graph
 - Add labels to graph
 - Add Application icon
