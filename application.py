@@ -282,7 +282,9 @@ class Application(Gtk.Application):
     def ui_clear_data(self, _action, _params):
         with self.__run_data_lock:
             self.run_data = []
-        # force redraw as data is dirty
+
+        # force redraw as data is dirty after releasing lock
+        self.graph_canvas.queue_draw()
 
 
     def ui_export_data(self, _action, _params):
@@ -388,18 +390,51 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "You must select a serial port to connect to.")
 
 
-    def plot_data(self, _wid, cr):
+    def plot_data(self, canvas, cr):
         '''
         Draw the graph
         '''
         cr.set_source_rgb(0, 0, 0)
         cr.set_line_width(0.5)
+        height = canvas.get_allocated_height() - 20
+        width = canvas.get_allocated_width() - 20
 
-        # connect each point to every other point
-        for i in range(0,len(self.coords)-1):
-            cr.move_to(self.coords[i][0], self.coords[i][1])
-            cr.line_to(self.coords[i+1][0], self.coords[i+1][1]) 
-            cr.stroke()
+        with self.__run_data_lock: # wouldn't do to change data during export
+            if 1 < len(self.run_data): # plotting a single point gets weird
+                # find max and min values
+                initial_point = self.run_data[0]
+                time_min = initial_point[0]
+                time_max = self.run_data[-1][0]
+                load_min = initial_point[1]
+                load_max = initial_point[1]
+                for row in self.run_data[1:]:
+                    # We know time is monotonic so we can just look and first and last
+                    # if row[0] < time_min:
+                    #     time_min = row[0]
+                    # if row[0] > time_max:
+                    #     time_max = row[0]
+                    if row[1] < load_min:
+                        load_min = row[1]
+                    if row[1] > load_max:
+                        load_max = row[1]
+                
+                h_scale = width / (time_max - time_min)
+                v_scale = height / (load_max - load_min)
+
+                # drawing area is y-inverted
+                top = height + 10
+
+                cr.move_to(10, top - (initial_point[1] - load_min) * v_scale)
+                for row in self.run_data[1:]:
+                    cr.line_to(10 + (row[0] - time_min) * h_scale, top - (row[1] - load_min) * v_scale)
+                cr.stroke()
+            else:
+                # no data, indicate as much
+                # connect each point to every other point
+                cr.move_to(self.coords[0][0], self.coords[0][1])
+                for coordinate in self.coords[1:]:
+                    cr.line_to(coordinate[0], coordinate[1]) 
+                cr.stroke()
 
 
     def __poll_instrument(self):
@@ -420,6 +455,7 @@ class Application(Gtk.Application):
                 with self.__run_data_lock: # this may block, we need will need
                                            # to refresh now before calculating delay
                     self.run_data.append((now, load, extension))
+                    self.graph_canvas.queue_draw()
                     now = monotonic()
             delay = next_call - now
             if delay > self.minimal_delay:
