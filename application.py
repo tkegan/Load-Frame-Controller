@@ -11,10 +11,11 @@
 #####################################################################
 
 # Import from python stanard library
+import csv
 from random import random
 import sys
-from threading import Thread
-from time import sleep, time
+from threading import Lock, Thread
+from time import monotonic, sleep
 
 # Import from third party libraries
 from serial import Serial
@@ -53,6 +54,12 @@ class Application(Gtk.Application):
     Tom Egan <tegan@bucknell.edu> for Bucknell University 
     '''
 
+    # the minimum time to delay between consecutive polls of instrument
+    # ideally 0 would be a safe value but in priciple we need a bit more
+    # time to account for processing overhead. This implies a maximum
+    # sampling frequency of 1/minimal_delay e.g. 100 Hz => 0.01
+    minimal_delay = 0.005
+
     loadframe_models = {
         "Tinius Olsen H5K Series": TiniusOlsenH5KSeries,
         "Tinius Olsen 1000 Series": TiniusOlsen1000Series
@@ -62,10 +69,6 @@ class Application(Gtk.Application):
         super().__init__(*args, application_id="edu.bucknell.TOControl",
             #flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs)
-        self.settings = {
-            "log": False,
-            "log_file": "tinius_olsen.log"
-        }
 
         # declare a reference to the apparatus
         self.machine = None
@@ -95,8 +98,15 @@ class Application(Gtk.Application):
         # Declare some place holder data
         self.coords = [(25.5, 38.8), (103.3, 209.9), (235.9, 132.2), (300.1, 200.5)]
 
-        # Set a sane default
-        self.polling_interval = 1
+        # Declare a list to hold run data and a lock to control multi threaded access to it
+        self.run_data = []
+        self.__run_data_lock = Lock()
+
+        # Declare a boolean to track if we should accumulate data
+        self.__collecting_data = False
+
+        # Set a sane default: 1 Hz
+        self.polling_interval = 1 # sampling frequency = 1 / polling interval
 
         # Add command line parsing options
         #self.add_main_option("log", ord("l"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Enable logging raw output from Load Frame", None)
@@ -235,6 +245,9 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "Unable to set run rate; No load frame connected")
 
 
+    def ui_collect_data_state_changed(self, sender):
+        self.__collecting_data = sender.get_active()
+
     def ui_run_testing_apparatus(self, _action):
         '''
         Run or Stop the load frame
@@ -267,11 +280,41 @@ class Application(Gtk.Application):
 
 
     def ui_clear_data(self, _action, _params):
-        print("Asked to clear data")
+        with self.__run_data_lock:
+            self.run_data = []
+        # force redraw as data is dirty
 
 
     def ui_export_data(self, _action, _params):
-        print("Asked to export data")
+        '''
+        Run a Save dialog and if the user provides a file name, dump the
+        run data into a csv file with the specified file name
+        '''
+        dialog = Gtk.FileChooserDialog(title = "Export",
+                                        parent = self.window,
+                                        action = Gtk.FileChooserAction.SAVE)
+        dialog.add_button(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL)
+        dialog.add_button(Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
+        dialog.set_current_name("trial.csv")
+
+        filter_csv = Gtk.FileFilter()
+        filter_csv.set_name("CSV files")
+        filter_csv.add_pattern("*.csv")
+        dialog.add_filter(filter_csv)
+
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            filename = dialog.get_filename()
+            with open(filename, 'w') as csvfile:
+                with self.__run_data_lock: # wouldn't do to change data during export
+                    spamwriter = csv.writer(csvfile)
+                    spamwriter.writerow(("Time", "Load (N)", "Extension (mm)"))
+                    for row in self.run_data:
+                        spamwriter.writerow(row)
+                    print("Exported data to {}".format(filename))
+                    self.statusbar.push(0, "Exported data to {}".format(filename))
+        # can release locks before disposing of dialog.
+        dialog.destroy()
 
 
     def ui_show_preferences_window(self, _action, _params):
@@ -365,14 +408,22 @@ class Application(Gtk.Application):
 
         Intended to be run as a thread
         '''
-        next_call = time()
+        next_call = monotonic()
         while True:
+            next_call += self.polling_interval
             load = self.machine.read_load() * self.range
             self.load_field.set_text("{}".format(load))
             extension = self.machine.read_extension()
             self.extension_field.set_text("{}".format(extension))
-            next_call += self.polling_interval
-            sleep(next_call - time())
+            now = monotonic()
+            if self.__collecting_data:
+                with self.__run_data_lock: # this may block, we need will need
+                                           # to refresh now before calculating delay
+                    self.run_data.append((now, load, extension))
+                    now = monotonic()
+            delay = next_call - now
+            if delay > self.minimal_delay:
+                sleep(delay)
 
 
 # This is the entry point where the python interpreter starts our application

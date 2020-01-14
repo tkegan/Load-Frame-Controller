@@ -438,6 +438,7 @@ Author: Tom Egan
                         <property name="can_focus">True</property>
                         <property name="receives_default">True</property>
                         <property name="halign">center</property>
+                        <signal name="toggled" handler="ui_collect_data_state_changed" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">False</property>
