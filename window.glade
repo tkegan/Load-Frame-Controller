@@ -55,6 +55,7 @@ Author: Tom Egan
     <property name="name">window</property>
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">TO Control</property>
+    <property name="icon">icon.svg</property>
     <property name="show_menubar">False</property>
     <signal name="destroy" handler="ui_quit" swapped="no"/>
     <child>
