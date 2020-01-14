@@ -70,6 +70,19 @@ class TiniusOlsen(ABC):
 
 
     @abstractmethod
+    def get_load_cell_range(self):
+        '''
+        Get the rated range for the load cell in Newtons (N)
+
+        Raises
+        --------
+        LookupError if the machine reports a load cell of an unknown type
+            is in use or does not respond to request to read configuration
+        '''
+        pass
+
+
+    @abstractmethod
     def read_extension(self):
         '''
         Get the current extension in Millimeters (mm)
