@@ -1,4 +1,4 @@
-This documentation is dervived from examining a Labview program written in house at Bucknell University possibly using documentation from Tinius Olsen but the records of the program development have been lost.
+This documentation is dervived from examining a program written in house at Bucknell University possibly written using documentation from Tinius Olsen and from testing using the load frame. Records from the in house program development were lost prior to 2019. Thus this documentation is what has tested to be correct and is not exhaustive.
 
 Communication Settings:
 	- baudrate: 19200
@@ -6,7 +6,7 @@ Communication Settings:
 
 Command Language
 	- "RC" Read Calibration or Read Range; An ASCII encoded intger is returned.
-	- "RL" Read Load reported as an ASCII encode signed integer, "counts". The old code expects values from -30000 to 30000 over the range of the load cell (see lookup table). Perhaps a signed 16 bit integer (-32768 to 32767)? 
+	- "RL" Read Load An ASCII encode signed integer, "counts" is returned. The old code expects values from -30000 to 30000 over the range of the load cell (see lookup table). While a signed 16 bit integer (-32768 to 32767) seems like an obvious scaling factor, 30000 aligns much more closely with the load displayed on the load frame. 
 	- "RP" Read Extension reported in 0.001 mm i.e. a reading of 6087 is 6.087mm or 0.2396in
 	- "WV#.#" Set Run Rate; Sets the rate at which the machine drives the platen in mm/min. Specify rate as one digit to the right of the decimal point with a minimum of 1.0 and maximum of 1500.0.
 	- "WR" Start machine in motion Down

@@ -1,0 +1,24 @@
+This documentation is dervived from documentation shipped with a Tinius Olsen 1000 Series Load frame purchased by Bucknell University. The documentation from Tinius Olsen lacks a copyright notice and is thus not reproduced here due to unknown copyright status.
+
+Communication Settings:
+	- baudrate: 9600
+	- termination character: ASCII 13 i.e. \r
+
+Command Language
+	- "R1" Read Load reported as an ASCII encoded signed integer, "counts" in the range 48 to 4048 with 0 absolute load corresponding to approximately 2048. 
+	- "R2" Read Extension reported in 0.001 mm i.e. a reading of 6087 is 6.087mm or 0.2396in
+	- "RC" Read Calibration or Read Range; An ASCII encoded intger is returned.
+	- "RU" Read units configuration from machine. The load frame controller internally tracks units and the units setting affects the valid input range for the "Write Speed (WV)" command and the output range or "Read Load" and "Read Extension" 
+	- "WV#.#" Set Run Rate; Sets the rate at which the machine drives the platen in mm/min. Specify rate as one digit to the right of the decimal point with a minimum of 1.0 and maximum of 1500.0.
+	- "WR" Start machine in motion Down
+	- "WF" Start machine in motion Up
+	- "WS" Stop machine motion
+	- "WE" Zero Extension - zeros the display but does not affect the absolute value reported over the serial interface.
+	- "WZ" Zero Load - zeros the display but does does affect the absolute values reported over the serial interface.
+
+Range lookup. The first column is the value returned by the RC command and the second column is the range in Newtons.
+	0: 1000
+	1: 100
+	2: 10
+	3: 1
+	6: 10000
