@@ -25,7 +25,7 @@ from serial.tools.list_ports import comports
 #   on CentOS install with `sudo dnf install python36-gobject`
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import GLib, Gio, Gtk, Gdk
+from gi.repository import GLib, Gio, Gtk
 
 # Import from our bundled instrument control library
 from tiniusolsen import TiniusOlsen1000Series, TiniusOlsenH5KSeries
@@ -92,6 +92,7 @@ class Application(Gtk.Application):
         self.model_select = None
         self.connect_button = None
         self.run_button = None
+        self.run_rate_field = None
         self.direction_up_radio_button = None
         self.panel_switcher = None
         self.load_field = None
@@ -195,6 +196,7 @@ class Application(Gtk.Application):
             self.model_select = builder.get_object("model_select")
             self.connect_button = builder.get_object("connect_button")
             self.run_button = builder.get_object("run_button")
+            self.run_rate_field = builder.get_object("run_rate_field")
             self.direction_up_radio_button = builder.get_object("direction_up_radio_button")
             
             # Pack a renderer in the connection select combobox
@@ -221,6 +223,9 @@ class Application(Gtk.Application):
 
             # Get a list of serial ports and populate the combobox
             self.ui_update_serial_port_list(None)
+
+            # we should set the run_rate and sampling_rate field here rather
+            # than depend on them being in sync
 
         # Bring the window to the front
         self.window.present()
@@ -263,12 +268,12 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "Unable to set sampling rate; Invalid rate")
 
 
-    def ui_run_rate_changed(self, sender):
+    def ui_run_rate_changed(self, _sender):
         '''
         UI Action method; invoked when the run rate input value changes
         '''
         if self.machine:
-            self.machine.set_run_rate(sender.get_value())
+            self.machine.set_run_rate(self.run_rate_field.get_value())
         else:
             print("Unable to set run rate; No load frame connected")
             self.statusbar.push(0, "Unable to set run rate; No load frame connected")
@@ -287,6 +292,7 @@ class Application(Gtk.Application):
         '''
         if self.machine:
             if self.run_button.get_active():
+                self.machine.set_run_rate(self.run_rate_field.get_value())
                 if self.direction_up_radio_button.get_active():
                     self.machine.start_moving_up()
                 else:

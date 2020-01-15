@@ -11,13 +11,13 @@ The Bucknell Universtity College of Engineering has a number of Tinius Olsen loa
 	- pyserial
 
 ## Usage
-This project is not designed to be run in a virtual environment as Gtk3 is difficult if not impossible to use in a virtual environment, also the only dependency other than Gtk is pyserial which is often installed globally anyways. Provided the dependencies are installed running the application should be as simple as:
+This project is not designed to be run in a virtual environment as Gtk+3 (PyGObject) is difficult if not impossible to use in a virtual environment, also the only dependency other than PyGObject is pyserial which is often installed globally anyways. Provided the dependencies are installed running the application should be as simple as:
 
 ```sh
 python3 application.py
 ```
 
-Please note that this software allows you to operate a compatible load frame from a GUI, but does not make any safety guarantees. The software will attempt to stop the load frame if it is in motion when closing as reasonable default but just as injuries can occur when using the interface on the load frame, injuries can happen when using this software. ALWAYS use caution and wear appropriate personal protective equipment when running any loadframe regardless of interface. 
+Please note that this software allows you to operate a compatible load frame from a GUI, and while it will attempt to stop the load frame if it is in motion when closing as reasonable default; *NO* guarantee is made or implied that the load frame will be operated safely nor is a guarantee possible as supported load frames lack safety interlocks. Just as injuries can occur when using the interface on the load frame, injuries can happen when using this software. ALWAYS use caution and wear appropriate personal protective equipment when running any loadframe regardless of interface. 
 
 ## License
 This project is licensed under the Apache 2.0 License - see the LICENSE file for details
@@ -27,7 +27,6 @@ This project is licensed under the Apache 2.0 License - see the LICENSE file for
 
 ## To Do
 
-- Fix bug - 1000 series devices need speed set before moving
 - Add axis to graph
 - Add labels to graph
 - Add Application icon
