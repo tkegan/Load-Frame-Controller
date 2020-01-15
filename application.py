@@ -14,7 +14,7 @@
 import csv
 from random import random
 import sys
-from threading import Lock, Thread
+from threading import Condition, Lock, Thread
 from time import monotonic, sleep
 
 # Import from third party libraries
@@ -60,12 +60,19 @@ class Application(Gtk.Application):
     # sampling frequency of 1/minimal_delay e.g. 100 Hz => 0.01
     minimal_delay = 0.005
 
+    # Dictionary of supported models. The keys are used in the UI to populate
+    # the model selection combobox. The values must be concrete implementations
+    # of tiniusolsen.TiniusOlsen
     loadframe_models = {
         "Tinius Olsen H5K Series": TiniusOlsenH5KSeries,
         "Tinius Olsen 1000 Series": TiniusOlsen1000Series
     }
 
+
     def __init__(self, *args, **kwargs):
+        '''
+        Override GTK.Application method used to declare ivars.
+        '''
         super().__init__(*args, application_id="edu.bucknell.TOControl",
             #flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs)
@@ -107,15 +114,16 @@ class Application(Gtk.Application):
 
         # Set a sane default: 1 Hz
         self.polling_interval = 1 # sampling frequency = 1 / polling interval
+        self.__polling_interval_changed_condition = Condition()
 
         # Add command line parsing options
         #self.add_main_option("log", ord("l"), GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Enable logging raw output from Load Frame", None)
 
-    # Gtk.Application overrides
+
     def do_startup(self):
         '''
-        Callback invoked to "run" the application; allows for setup before
-        parsing the command line
+        Overrides GTK.Application method; Callback invoked to "run" the application;
+        allows for setup before parsing the command line
         '''
         Gtk.Application.do_startup(self)
 
@@ -146,25 +154,28 @@ class Application(Gtk.Application):
         self.set_app_menu(builder.get_object("app-menu"))
 
 
-    # def do_command_line(self, command_line):
-    #     '''
-    #     Unpack command line and adjust settings accordingly
-    #     '''
-    #     # Convert from GVariantDict to native python dict
-    #     options = command_line.get_options_dict()
-    #     options = options.end().unpack()
+    def do_command_line(self, command_line):
+        '''
+        Overrides GTK.Application method; Callback invoked to unpack command
+        line arguments and adjust settings accordingly
+        '''
+        # Convert from GVariantDict to native python dict
+        # options = command_line.get_options_dict()
+        # options = options.end().unpack()
 
-    #     if "log" in options:
-    #         print("Command line enabled logging")
+        # if "log" in options:
+        #     print("Command line enabled logging")
 
-    #     self.activate
-    #     return 0
+        # self.activate
+        # return 0
+        pass
 
 
     def do_activate(self):
         '''
-        Callback invoked when the application is asked to become the active
-        i.e. launched, switched to by task switcher etc.
+        Overrides GTK.Application method; Callback invoked when the application
+        is asked to become "active" i.e. launched, switched to by task switcher etc.
+        Instantiates the application window if necessary then shows it. 
         '''
         # We only allow a single window; create it if it does not exist
         if not self.window:
@@ -208,16 +219,16 @@ class Application(Gtk.Application):
             # Does not work from Glade for some reason
             self.graph_canvas.connect("draw", self.plot_data)
 
-        # Get a list of serial ports and populate the combobox
-        self.ui_update_serial_port_list(None)
+            # Get a list of serial ports and populate the combobox
+            self.ui_update_serial_port_list(None)
 
         # Bring the window to the front
         self.window.present()
 
 
-    def ui_zero_extension(self, _action):
+    def ui_zero_extension(self, _sender):
         '''
-        Callback invoked when the zero extension button is clicked
+        UI Action method; Callback invoked when the zero extension button is clicked
         '''
         if self.machine:
             self.machine.zero_extension()
@@ -226,7 +237,7 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "Unable to zero load; No load frame connected")
 
 
-    def ui_zero_load(self, _action):
+    def ui_zero_load(self, _sender):
         '''
         Callback invoked when the zero load button is clicked
         '''
@@ -237,7 +248,25 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "Unable to zero load; No load frame connected")
 
 
+    def ui_sample_rate_changed(self, sender):
+        try:
+            # We set limits in the sampling_rate_adjustment in the window.glade
+            # UI definition so hopefully the next line doesn't bomb but it
+            # could end in a div by 0 exception so handle before trying to
+            # acquire the lock
+            interval = 1 / float(sender.get_value())
+            with self.__polling_interval_changed_condition:
+                self.polling_interval = interval
+                self.__polling_interval_changed_condition.notify()
+        except Exception as e:
+            print(e)
+            self.statusbar.push(0, "Unable to set sampling rate; Invalid rate")
+
+
     def ui_run_rate_changed(self, sender):
+        '''
+        UI Action method; invoked when the run rate input value changes
+        '''
         if self.machine:
             self.machine.set_run_rate(sender.get_value())
         else:
@@ -245,11 +274,11 @@ class Application(Gtk.Application):
             self.statusbar.push(0, "Unable to set run rate; No load frame connected")
 
 
-    def ui_collect_data_state_changed(self, sender):
-        self.__collecting_data = sender.get_active()
+    def ui_collect_data_state_changed(self, _sender, state):
+        self.__collecting_data = state
 
 
-    def ui_run_testing_apparatus(self, _action):
+    def ui_run_testing_apparatus(self, _sender):
         '''
         Run or Stop the load frame
 
@@ -280,7 +309,7 @@ class Application(Gtk.Application):
         about_dialog.present()
 
 
-    def ui_clear_data(self, _action, _params):
+    def ui_clear_data(self, *_args):
         with self.__run_data_lock:
             self.run_data = []
 
@@ -288,7 +317,7 @@ class Application(Gtk.Application):
         self.graph_canvas.queue_draw()
 
 
-    def ui_export_data(self, _action, _params):
+    def ui_export_data(self, *_args):
         '''
         Run a Save dialog and if the user provides a file name, dump the
         run data into a csv file with the specified file name
@@ -331,7 +360,7 @@ class Application(Gtk.Application):
         self.quit()
 
 
-    def ui_update_serial_port_list(self, *_args):
+    def ui_update_serial_port_list(self, _sender):
         ports = comports()
 
         self.serial_connections_list_store.clear()
@@ -350,7 +379,7 @@ class Application(Gtk.Application):
             self.connect_button.set_sensitive(True)
 
 
-    def ui_connect(self, *_args):
+    def ui_connect(self, _sender):
         '''
         Connect to the instrument using the selected serial port
         '''
@@ -394,6 +423,11 @@ class Application(Gtk.Application):
     def plot_data(self, canvas, cr):
         '''
         Draw the graph
+
+        Parameters
+        --------
+            canvas - the GTKDrawingArea into which the cairo contex will will render
+            cr - the cairo context to draw with
         '''
         cr.set_source_rgb(0, 0, 0)
         cr.set_line_width(0.5)
@@ -444,24 +478,31 @@ class Application(Gtk.Application):
 
         Intended to be run as a thread
         '''
-        next_call = monotonic()
-        while True:
-            next_call += self.polling_interval
-            load = self.machine.read_load() * self.range
-            self.load_field.set_text("{}".format(load))
-            extension = self.machine.read_extension()
-            self.extension_field.set_text("{}".format(extension))
-            now = monotonic()
-            if self.__collecting_data:
-                with self.__run_data_lock: # this may block, we need will need
-                                           # to refresh now before calculating delay
-                    self.run_data.append((now, load, extension))
-                    self.graph_canvas.queue_draw()
-                    now = monotonic()
-            delay = next_call - now
-            if delay > self.minimal_delay:
-                sleep(delay)
 
+        with self.__polling_interval_changed_condition:
+            while True:
+                # poll the machine
+                now = monotonic()
+                load = self.machine.read_load() * self.range
+                extension = self.machine.read_extension()
+
+                # update UI
+                self.extension_field.set_text("{}".format(extension))
+                self.load_field.set_text("{}".format(load))
+
+                # if collecting data, add to data store
+                if self.__collecting_data:
+                    with self.__run_data_lock: # this may block, we need will need
+                                            # to refresh now before calculating delay
+                        self.run_data.append((now, load, extension))
+                        self.graph_canvas.queue_draw()
+                
+                # calculate time to next poll and wait
+                next_call = now + self.polling_interval
+                delay = next_call - monotonic()
+                if delay > self.minimal_delay:
+                    self.__polling_interval_changed_condition.wait(delay)
+                
 
 # This is the entry point where the python interpreter starts our application
 if __name__ == "__main__":
