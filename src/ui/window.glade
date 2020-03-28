@@ -60,8 +60,8 @@ Author: Tom Egan
   <object class="GtkApplicationWindow" id="window">
     <property name="name">window</property>
     <property name="can_focus">False</property>
-    <property name="title" translatable="yes">TO Control</property>
-    <property name="icon">icon.svg</property>
+    <property name="title" translatable="yes">Load Frame Controller</property>
+    <property name="icon_name">tech.tomegan.load_frame_controller</property>
     <property name="show_menubar">False</property>
     <signal name="destroy" handler="ui_quit" swapped="no"/>
     <child>

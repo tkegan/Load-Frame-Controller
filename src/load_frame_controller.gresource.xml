@@ -6,7 +6,4 @@
 	<gresource prefix="/tech/tomegan/load_frame_controller">
 		<file>ui/window.glade</file>
 	</gresource>
-	<gresource prefix="/tech/tomegan/load_frame_controller">
-		<file>ui/icon.svg</file>
-	</gresource>
 </gresources>
