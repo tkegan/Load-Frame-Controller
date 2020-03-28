@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+	<gresource prefix="/tech/tomegan/load_frame_controller">
+		<file>ui/menu.glade</file>
+	</gresource>
+	<gresource prefix="/tech/tomegan/load_frame_controller">
+		<file>ui/window.glade</file>
+	</gresource>
+	<gresource prefix="/tech/tomegan/load_frame_controller">
+		<file>ui/icon.svg</file>
+	</gresource>
+</gresources>

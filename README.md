@@ -10,25 +10,34 @@ The Bucknell Universtity College of Engineering has a number of Tinius Olsen loa
 	- PyGObject
 	- pyserial
 
-## Usage
-This project is not designed to be run in a virtual environment as Gtk+3 (PyGObject) is difficult if not impossible to use in a virtual environment, also the only dependency other than PyGObject is pyserial which is often installed globally anyways. Provided the dependencies are installed running the application should be as simple as:
+## Building
+Load Frame Controller is build using the `meson` build system.
 
 ```sh
-python3 application.py
+meson . build
+cd build
+ninja
 ```
 
-Please note that this software allows you to operate a compatible load frame from a GUI, and while it will attempt to stop the load frame if it is in motion when closing as reasonable default; *NO* guarantee is made or implied that the load frame will be operated safely nor is a guarantee possible as supported load frames lack safety interlocks. Just as injuries can occur when using the interface on the load frame, injuries can happen when using this software. ALWAYS use caution and wear appropriate personal protective equipment when running any loadframe regardless of interface. 
+and can be installed as typical for a `meson` project:
+
+```sh
+sudo ninja install
+```
+
+## Usage
+
+Please note that this software allows you to operate a compatible load frame from a GUI, and while it will attempt to stop the load frame if it is in motion when closing as reasonable default; *NO* guarantee is made or implied that the load frame will be operated safely nor is a guarantee possible as supported load frames lack safety interlocks. Just as injuries can occur when using the controls on the load frame, injuries can happen when using this software. ALWAYS use caution and wear appropriate personal protective equipment when running any loadframe regardless of interface. 
 
 ## License
 This project is licensed under the Apache 2.0 License - see the LICENSE file for details
 
 ## Author
-2019 - present Tom Egan tegan@bucknell.edu
+2019 - present Tom Egan tom@tomegan.tech
 
 ## To Do
 
 - Add axis to graph
 - Add labels to graph
-- Add Application icon
 - Catch IO errors that indicate machine has been disconnected and deal with them reasonably
 - Provide as a package with appdata.xml, icon and .desktop files

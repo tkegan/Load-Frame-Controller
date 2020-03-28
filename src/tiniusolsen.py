@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 #####################################################################
 # Copyright 2020 Tom Egan
 #
@@ -14,12 +12,14 @@
 from __future__ import division
 
 # Import from Python Standard Library
-from abc import ABC, abstractmethod
 from threading import RLock
 from time import sleep
 
 # Import from third party libraries
 from serial import Serial
+
+# Import from our module
+from .loadframe import LoadFrame
 
 '''
 Classes for communicating with Tinius Olsen load frames
@@ -35,10 +35,10 @@ Apache 2.0 License (See Also LICENSE file)
 
 Author
 --------
-Tom Egan <tegan@bucknell.edu> for Bucknell University 
+Tom Egan <tom@tomegan.tech>
 '''
 
-class TiniusOlsen(ABC):
+class TiniusOlsenLoadFrame(LoadFrame):
     '''
     An abstract base class that implements some core functionality shared
     by all supported Tinius Olsen load frames 
@@ -64,71 +64,11 @@ class TiniusOlsen(ABC):
                     break
                 else:
                     buffer.append(b[0])
-            
-            #print(buffer.decode('utf-8'))
+
             return buffer
 
 
-    @abstractmethod
-    def get_load_cell_range(self):
-        '''
-        Get the rated range for the load cell in Newtons (N)
-
-        Raises
-        --------
-        LookupError if the machine reports a load cell of an unknown type
-            is in use or does not respond to request to read configuration
-        '''
-        pass
-
-
-    @abstractmethod
-    def read_extension(self):
-        '''
-        Get the current extension in Millimeters (mm)
-        '''
-        pass
-
-
-    @abstractmethod
-    def read_load(self):
-        '''
-        Get the current load in Newtons (N)
-        '''
-        pass
-
-
-    @abstractmethod
-    def set_run_rate(self, rate):
-        pass
-
-
-    @abstractmethod
-    def start_moving_up(self):
-        pass
-
-
-    @abstractmethod
-    def start_moving_down(self):
-        pass
-
-
-    @abstractmethod
-    def stop_moving(self):
-        pass
-
-
-    @abstractmethod
-    def zero_extension(self):
-        pass
-
-
-    @abstractmethod
-    def zero_load(self):
-        pass
-
-
-class TiniusOlsenH5KSeries(TiniusOlsen):
+class TiniusOlsenH5KSeries(TiniusOlsenLoadFrame):
     '''
     An implementation of the serial Communication protocol used with Tinius
     Olsen H5K series load frame controllers
@@ -267,7 +207,7 @@ class TiniusOlsenH5KSeries(TiniusOlsen):
             self._read() # purge the \r
 
 
-class TiniusOlsen1000Series(TiniusOlsen):
+class TiniusOlsen1000Series(TiniusOlsenLoadFrame):
     '''
     An implementation of the serial Communication protocol used with Tinius
     Olsen 1000 series load frame controllers.

@@ -1,3 +1,11 @@
-#ignore temp files
+# ignore temp files
 *~
 *.pyc
+__pycache__
+
+# ignore editor droppings
+.vscode
+
+# typically build artifacte exist at build. they may be
+# elsewhere but we'll ignore the default at least
+build

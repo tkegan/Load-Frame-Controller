@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Load Frame Controller
+Icon=tech.tomegan.load_frame_controller
+Exec=load_frame_controller
+Terminal=false
+Type=Application
+Categories=
+StartupNotify=false

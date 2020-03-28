@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 #####################################################################
 # Copyright 2020 Tom Egan
 #
@@ -28,7 +26,7 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import GLib, Gio, Gtk
 
 # Import from our bundled instrument control library
-from tiniusolsen import TiniusOlsen1000Series, TiniusOlsenH5KSeries
+from .tiniusolsen import TiniusOlsen1000Series, TiniusOlsenH5KSeries
 
 
 class Application(Gtk.Application):
@@ -51,7 +49,7 @@ class Application(Gtk.Application):
     
     Author
     --------
-    Tom Egan <tegan@bucknell.edu> for Bucknell University 
+    Tom Egan <tom@tomegan.tech>
     '''
 
     # the minimum time to delay between consecutive polls of instrument
@@ -62,20 +60,26 @@ class Application(Gtk.Application):
 
     # Dictionary of supported models. The keys are used in the UI to populate
     # the model selection combobox. The values must be concrete implementations
-    # of tiniusolsen.TiniusOlsen
+    # of tiniusolsen.TiniusOlsenLoadFrame If this projcet continues to develop
+    # a better factory mechanism for instances of loadframe.LoadFrame should
+    # be developed
     loadframe_models = {
         "Tinius Olsen H5K Series": TiniusOlsenH5KSeries,
         "Tinius Olsen 1000 Series": TiniusOlsen1000Series
     }
 
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, version, *args, **kwargs):
         '''
         Override GTK.Application method used to declare ivars.
         '''
-        super().__init__(*args, application_id="edu.bucknell.TOControl",
+        super().__init__(*args, application_id="tech.tomegan.load_frame_controller",
             #flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs)
+
+        self.use_bundled_resources = True
+        if version is not None and "development" == version:
+            self.use_bundled_resources = False
 
         # declare a reference to the apparatus
         self.machine = None
@@ -151,7 +155,10 @@ class Application(Gtk.Application):
         self.add_action(action)
 
         #Build menus, too late in do_activate
-        builder = Gtk.Builder.new_from_file("menu.glade")
+        if self.use_bundled_resources:
+            builder = Gtk.Builder.new_from_resource("/tech/tomegan/load_frame_controller/ui/menu.glade")
+        else:
+            builder = Gtk.Builder.new_from_file("ui/menu.glade")
         self.set_app_menu(builder.get_object("app-menu"))
 
 
@@ -180,7 +187,10 @@ class Application(Gtk.Application):
         '''
         # We only allow a single window; create it if it does not exist
         if not self.window:
-            builder = Gtk.Builder.new_from_file("window.glade")
+            if self.use_bundled_resources:
+                builder = Gtk.Builder.new_from_resource("/tech/tomegan/load_frame_controller/ui/window.glade")
+            else:
+                builder = Gtk.Builder.new_from_file("ui/window.glade")
             self.window = builder.get_object("window")
             self.add_window(self.window)
 
@@ -508,9 +518,11 @@ class Application(Gtk.Application):
                 delay = next_call - monotonic()
                 if delay > self.minimal_delay:
                     self.__polling_interval_changed_condition.wait(delay)
-                
 
-# This is the entry point where the python interpreter starts our application
-if __name__ == "__main__":
-    app = Application()
+
+def main(version):
+    '''
+    Create an instance of the application and run it
+    '''
+    app = Application(version)
     app.run(sys.argv)
